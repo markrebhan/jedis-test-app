@@ -11,12 +11,15 @@ import java.util.Collections;
 import java.util.List;
 
 import redis.clients.jedis.Jedis;
+import redis.clients.jedis.StreamMessage;
+import redis.clients.jedis.XReadArgs;
 import redis.clients.util.SafeEncoder;
 import timber.log.Timber;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final String STREAM_TEST = "STREAMTEST";
+    private static final String STREAM_TEST_2 = "STREAMTEST2";
 
     private RedisService service;
     private MyConnection connection = new MyConnection();
@@ -49,6 +52,7 @@ public class MainActivity extends AppCompatActivity {
         Timber.d("Service bound, starting jedis tests!");
 
         String offset = "0";
+        String offset2 = "0";
 
         List<Long> xaddDurations = new ArrayList<>();
         List<Long> xreadDurations = new ArrayList<>();
@@ -58,18 +62,20 @@ public class MainActivity extends AppCompatActivity {
             long startTime = System.currentTimeMillis();
             Timber.d("XADD START");
             String result = jedis.xadd(STREAM_TEST, Collections.singletonMap("Key", "Value"));
+            String result2 = jedis.xadd(STREAM_TEST_2, Collections.singletonMap("Key2", "Value2"));
             long addDuration = System.currentTimeMillis() - startTime;
             Timber.d("XADD RESULT %s, DURATION %d", result, addDuration);
             xaddDurations.add(addDuration);
 
             startTime = System.currentTimeMillis();
             Timber.d("XREAD START");
-            List<Object> readResult = jedis.xRead(STREAM_TEST, 1, offset);
+            List<StreamMessage> readResult = jedis.xRead(XReadArgs.builder().add(STREAM_TEST, offset).add(STREAM_TEST_2, offset2));
             long readDuration = System.currentTimeMillis() - startTime;
-            Timber.d("XREAD DURATION %d",  readDuration);
+            Timber.d("XREAD STREAM SIZE %d, DURATION %d",  readResult.size(), readDuration);
             xreadDurations.add(readDuration);
 
             offset = result;
+            offset2 = result2;
         }
 
         double xAddAverage= xaddDurations.stream().mapToLong(aLong -> aLong).average().getAsDouble();
